@@ -12,6 +12,7 @@ module HW1 where
 
 -- These import statement ensures you aren't using any "advanced" functions and types, e.g., lists.
 
+import Data.Binary.Get (Decoder (Fail))
 import Distribution.Types.ComponentInclude (ComponentInclude (ci_ann_id))
 import Prelude (Bool (..), Eq (..), Foldable (length), Int, Integer, Num (..), Ord (..), div, error, even, flip, id, mod, not, otherwise, undefined, ($), (&&), (.), (||))
 
@@ -187,9 +188,18 @@ maxMultiplication (a, b) (c, d) = if (a * b) > (c * d) then (a, b) else (c, d)
 flipPair :: (a, b) -> (b, a)
 flipPair (a, b) = (b, a)
 
--- -- ***** --
--- -- Bonus
--- -- ***** --
--- isCircularPrime :: Integer -> Bool
--- -- If you choose the implement this function, replace this with the actual implementation
--- isCircularPrime = undefined
+-- ***** --
+
+-- Bonus
+
+-- ***** --
+
+isCircularPrime :: Integer -> Bool
+-- If you choose the implement this function, replace this with the actual implementation
+isCircularPrime n | n < 2 = False
+isCircularPrime n = isCircularPrime' n 1 False
+
+isCircularPrime' :: Integer -> Integer -> Bool -> Bool
+isCircularPrime' n i _ | i > countDigits n = True
+isCircularPrime' n i booli | booli = isPrime n && isCircularPrime' (10 * rotateDigits n) (i + 1) False
+isCircularPrime' n i _ = isPrime n && if countDigits n > countDigits (rotateDigits n) then isCircularPrime' (rotateDigits n) (i + 1) True else isCircularPrime' (rotateDigits n) (i + 1) False
