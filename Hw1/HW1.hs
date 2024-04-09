@@ -96,8 +96,8 @@ exp10 0 = 1
 exp10 x = 10 * exp10 (x - 1)
 
 rotateDigits :: Integer -> Integer
-rotateDigits n | n >= 0 = (n `div` (exp10 (countDigits n - 1))) + ((n `mod` (exp10 (countDigits n - 1))) * 10)
-rotateDigits n = -(((-n) `div` 10) + (((-n) `mod` 10) * (exp10 (countDigits n - 1))))
+rotateDigits n | n >= 0 = (n `div` exp10 (countDigits n - 1)) + ((n `mod` exp10 (countDigits n - 1)) * 10)
+rotateDigits n = -(((-n) `div` 10) + (((-n) `mod` 10) * exp10 (countDigits n - 1)))
 
 -- ********* --
 
@@ -201,5 +201,5 @@ isCircularPrime n = isCircularPrime' n 1 False
 
 isCircularPrime' :: Integer -> Integer -> Bool -> Bool
 isCircularPrime' n i _ | i > countDigits n = True
-isCircularPrime' n i booli | booli = isPrime n && isCircularPrime' (10 * rotateDigits n) (i + 1) False
+isCircularPrime' n i multBy10 | multBy10 = isPrime n && isCircularPrime' (10 * rotateDigits n) (i + 1) False
 isCircularPrime' n i _ = isPrime n && if countDigits n > countDigits (rotateDigits n) then isCircularPrime' (rotateDigits n) (i + 1) True else isCircularPrime' (rotateDigits n) (i + 1) False
