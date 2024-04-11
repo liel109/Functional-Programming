@@ -166,9 +166,9 @@ isPrime n =
 
 isSemiprime :: Integer -> Bool
 isSemiprime n =
-  let countDivisors i | i > n `div` 2 = 0
-      countDivisors i = if n `mod` i == 0 then 1 + countDivisors (i + 1) else countDivisors (i + 1)
-   in countDivisors 2 == 2
+  let countDivisors i | i > n `div` 2 = False
+      countDivisors i = ((n `mod` i == 0 && isPrime i && isPrime (n `div` i)) || countDivisors (i + 1))
+   in countDivisors 2
 
 goldbachPair :: Integer -> (Integer, Integer)
 goldbachPair n =
