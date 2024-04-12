@@ -123,11 +123,15 @@ lengthGen (f, condition, seed) =
   let nextGen = (f, condition, f seed)
    in if nullGen (f, condition, seed) then 0 else 1 + lengthGen nextGen
 
+-- error with the last test case sumGen ((+ 1) , (< 10) , 10)
 sumGen :: Generator Integer -> Integer
 sumGen (f, condition, seed) =
-  let nextElement = f seed
-      nextGen = (f, condition, nextElement)
-   in if nullGen nextGen then nextElement else nextElement + sumGen nextGen
+  if nullGen (f, condition, seed)
+    then 0
+    else
+      let nextElement = f seed
+          nextGen = (f, condition, nextElement)
+       in if nullGen nextGen then nextElement else nextElement + sumGen nextGen
 
 type Predicate a = a -> Bool
 
