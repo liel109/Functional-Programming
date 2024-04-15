@@ -25,15 +25,6 @@ import Prelude (Bool (..), Eq (..), Foldable (length), Int, Integer, Num (..), O
 -- Section 1
 
 -- ********* --
-positives :: Generator Integer
-positives = ((+ 1), const True, 0)
-
-positivesUpTo10 :: Generator Integer
-positivesUpTo10 = ((+ 1), (<= 10), 0)
-
-emptyGen :: Generator Integer
-emptyGen = ((+ 1), const False, 0)
-
 const :: a -> b -> a
 const a _ = a
 

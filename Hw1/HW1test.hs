@@ -90,6 +90,15 @@ testCases =
     return $ check "isCircularPrime 199" (isCircularPrime 199) True
   ]
 
+positives :: Generator Integer
+positives = ((+ 1), HW1.const True, 0)
+
+positivesUpTo10 :: Generator Integer
+positivesUpTo10 = ((+ 1), (<= 10), 0)
+
+emptyGen :: Generator Integer
+emptyGen = ((+ 1), HW1.const False, 0)
+
 -- Main function to run all tests and print results selectively
 main :: IO ()
 main = do
