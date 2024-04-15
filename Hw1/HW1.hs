@@ -25,6 +25,14 @@ import Prelude (Bool (..), Eq (..), Foldable (length), Int, Integer, Num (..), O
 -- Section 1
 
 -- ********* --
+positives :: Generator Integer
+positives = ((+ 1), const True, 0)
+
+positivesUpTo10 :: Generator Integer
+positivesUpTo10 = ((+ 1), (<= 10), 0)
+
+emptyGen :: Generator Integer
+emptyGen = ((+ 1), const False, 0)
 
 const :: a -> b -> a
 const a _ = a
@@ -139,7 +147,7 @@ anyGen :: Predicate a -> Generator a -> Bool
 anyGen predicate (f, condition, seed) =
   let nextElement = f seed
       nextGen = (f, condition, nextElement)
-   in if nullGen nextGen then predicate nextElement else predicate nextElement || anyGen predicate nextGen
+   in (not (nullGen (f, condition, seed)) && (predicate nextElement || anyGen predicate nextGen))
 
 -- Check if we need to count the last element generated
 allGen :: Predicate a -> Generator a -> Bool
