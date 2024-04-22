@@ -79,17 +79,45 @@ partitionEithers =
 eitherToMaybe :: Either a b -> Maybe b
 eitherToMaybe = either (const Nothing) Just
 
--- -- Section 2: Lists
--- take :: Int -> [a] -> [a]
--- takeWhile :: (a -> Bool) -> [a] -> [a]
--- drop :: Int -> [a] -> [a]
--- dropWhile :: (a -> Bool) -> [a] -> [a]
--- reverse :: [a] -> [a]
--- rotate :: Int -> [a] -> [a]
--- lotate :: Int -> [a] -> [a]
--- type Generator a = (a -> a, a -> Bool, a)
--- fromGenerator :: Generator a -> [a]
--- replicate :: Int -> a -> [a]
+-- Section 2: Lists
+take :: Int -> [a] -> [a]
+take n = \case
+  [] -> []
+  x : xs -> if n <= 0 then [] else x : take (n - 1) xs
+
+takeWhile :: (a -> Bool) -> [a] -> [a]
+takeWhile _ [] = []
+takeWhile f (x : xs) = if f x then x : takeWhile f xs else []
+
+drop :: Int -> [a] -> [a]
+drop n = \case
+  [] -> []
+  x : xs -> if n <= 0 then x : xs else drop (n - 1) xs
+
+dropWhile :: (a -> Bool) -> [a] -> [a]
+dropWhile _ [] = []
+dropWhile f (x : xs) = if f x then dropWhile f xs else x : xs
+
+reverse :: [a] -> [a]
+reverse [] = []
+reverse (x : xs) = reverse xs ++ [x]
+
+rotate :: Int -> [a] -> [a]
+rotate _ [] = []
+rotate n x = if n <= 0 then x else rotate (n - 1) (reverse (lotate 1 (reverse x)))
+
+lotate :: Int -> [a] -> [a]
+lotate _ [] = []
+lotate n (x : xs) = if n <= 0 then x : xs else lotate (n - 1) (xs ++ [x])
+
+type Generator a = (a -> a, a -> Bool, a)
+
+fromGenerator :: Generator a -> [a]
+fromGenerator (f, p, x) = if p x then f x : fromGenerator (f, p, f x) else []
+
+replicate :: Int -> a -> [a]
+replicate n x = if n <= 0 then [] else x : replicate (n - 1) x
+
 -- inits :: [a] -> [[a]]
 -- tails :: [a] -> [[a]]
 
