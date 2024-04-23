@@ -118,8 +118,14 @@ fromGenerator (f, p, x) = if p x then f x : fromGenerator (f, p, f x) else []
 replicate :: Int -> a -> [a]
 replicate n x = if n <= 0 then [] else x : replicate (n - 1) x
 
--- inits :: [a] -> [[a]]
--- tails :: [a] -> [[a]]
+inits :: [a] -> [[a]]
+inits = foldr (\x acc -> [] : map (x :) acc) [[]]
+
+tails :: [a] -> [[a]]
+tails = reverse' . reverse . inits . reverse
+
+reverse' :: [[a]] -> [[a]]
+reverse' = map reverse
 
 -- -- Section 3: zips and products
 -- zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
