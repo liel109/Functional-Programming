@@ -7,7 +7,7 @@
 
 module HW2 where
 
-import Prelude (Bool (..), Bounded (..), Char, Either (..), Enum (..), Eq (..), Int, Integer, Maybe (..), Num (..), Ord (..), Show (..), String, all, and, any, concat, concatMap, const, curry, elem, error, filter, flip, foldl, foldr, fst, id, length, lines, lookup, map, not, notElem, null, product, snd, sum, uncurry, undefined, unlines, unwords, words, (!!), ($), (&&), (++), (.), (||))
+import Prelude (Bool (..), Bounded (..), Char, Either (..), Enum (..), Eq (..), Int, Integer, Maybe (..), Num (..), Ord (..), Show (..), String, all, and, any, concat, concatMap, const, curry, elem, error, filter, flip, foldl, foldr, fst, id, length, lines, lookup, map, not, notElem, null, product, snd, sum, tail, uncurry, undefined, unlines, unwords, words, (!!), ($), (&&), (++), (.), (||))
 
 ------------------------------------------------
 -- DO NOT MODIFY ANYTHING ABOVE THIS LINE !!! --
@@ -27,13 +27,10 @@ maybe x _ Nothing = x
 maybe _ f (Just y) = f y
 
 catMaybes :: [Maybe a] -> [a]
-catMaybes =
-  foldr
-    ( \x acc -> case x of
-        Just y -> y : acc
-        Nothing -> acc
-    )
-    []
+catMaybes = foldr aux []
+  where
+    aux (Just y) acc = y : acc
+    aux Nothing acc = acc
 
 mapMaybe :: (a -> Maybe b) -> [a] -> [b]
 mapMaybe f = catMaybes . map f
@@ -54,15 +51,12 @@ mapLeft :: (a -> c) -> Either a b -> Either c b
 mapLeft f = either (Left . f) Right
 
 catEithers :: [Either e a] -> Either e [a]
-catEithers =
-  foldr
-    ( \x acc -> case x of
-        Left e -> Left e
-        Right y -> case acc of
-          Left e -> Left e
-          Right ys -> Right (y : ys)
-    )
-    (Right [])
+catEithers = foldr aux (Right [])
+  where
+    aux (Left e) _ = Left e
+    aux (Right y) acc = case acc of
+      Left e -> Left e
+      Right ys -> Right (y : ys)
 
 mapEither :: (a -> Either e b) -> [a] -> Either e [b]
 mapEither f = catEithers . map f
@@ -128,25 +122,89 @@ reverse' :: [[a]] -> [[a]]
 reverse' = map reverse
 
 -- -- Section 3: zips and products
--- zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
--- zip :: [a] -> [b] -> [(a, b)]
--- zipFill :: a -> b -> [a] -> [b] -> [(a, b)]
--- data ZipFail = ErrorFirst | ErrorSecond deriving (Eq, Show)
--- zipFail :: [a] -> [b] -> Either ZipFail [(a, b)]
--- unzip :: [(a, b)] -> ([a], [b])
+zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith _ [] _ = []
+zipWith _ _ [] = []
+zipWith f (x : xs) (y : ys) = f x y : zipWith f xs ys
 
--- -- Section 4: Knight travels
--- -- Position (0, 0) is the top-left corner.
--- data KnightPos = KnightPos {x :: Int, y :: Int} deriving (Show, Eq)
--- data KnightMove = TopLeft | TopRight | RightTop | RightBottom | BottomRight | BottomLeft | LeftBottom | LeftTop deriving (Enum, Bounded, Show, Eq)
--- -- Utility to get all knight moves. Don't worry about the implementation of this.
--- allKnightMoves :: [KnightMove]
--- allKnightMoves = [minBound .. maxBound]
--- data Board = Board {width :: Int, height :: Int} deriving (Show, Eq)
--- tour :: Board -> KnightPos -> Maybe [KnightMove]
--- newtype InvalidPosition = InvalidPosition KnightPos deriving (Show, Eq)
--- translate :: KnightPos -> [KnightMove] -> [KnightPos]
--- translate' :: [KnightPos] -> Either InvalidPosition [KnightMove]
+zip :: [a] -> [b] -> [(a, b)]
+zip [] _ = []
+zip _ [] = []
+zip (x : xs) (y : ys) = (x, y) : zip xs ys
+
+zipFill :: a -> b -> [a] -> [b] -> [(a, b)]
+zipFill _ _ [] [] = []
+zipFill a b [] (y : ys) = (a, y) : zipFill a b [] ys
+zipFill a b (x : xs) [] = (x, b) : zipFill a b xs []
+zipFill a b (x : xs) (y : ys) = (x, y) : zipFill a b xs ys
+
+data ZipFail = ErrorFirst | ErrorSecond deriving (Eq, Show)
+
+zipFail :: [a] -> [b] -> Either ZipFail [(a, b)]
+zipFail [] [] = Right []
+zipFail [] _ = Left ErrorFirst
+zipFail _ [] = Left ErrorSecond
+zipFail (x : xs) (y : ys) = case zipFail xs ys of
+  Left e -> Left e
+  Right zs -> Right ((x, y) : zs)
+
+
+unzip :: [(a, b)] -> ([a], [b])
+unzip = foldr aux ([], [])
+  where
+    aux (x, y) (xs, ys) = (x : xs, y : ys)
+
+-- Section 4: Knight travels
+-- Position (0, 0) is the top-left corner.
+data KnightPos = KnightPos {x :: Int, y :: Int} deriving (Show, Eq)
+
+data KnightMove = TopLeft | TopRight | RightTop | RightBottom | BottomRight | BottomLeft | LeftBottom | LeftTop deriving (Enum, Bounded, Show, Eq)
+
+-- Utility to get all knight moves. Don't worry about the implementation of this.
+allKnightMoves :: [KnightMove]
+allKnightMoves = [minBound .. maxBound]
+
+data Board = Board {width :: Int, height :: Int} deriving (Show, Eq)
+
+tour :: Board -> KnightPos -> Maybe [KnightMove]
+tour board pos = case translate' (pos : allMoves) of
+  Left _ -> Nothing
+  Right moves -> Just moves
+  where
+    allMoves = [KnightPos x y | x <- [0 .. width board - 1], y <- [0 .. height board - 1]]
+
+
+
+newtype InvalidPosition = InvalidPosition KnightPos deriving (Show, Eq)
+
+moveKnight :: KnightPos -> KnightMove -> KnightPos
+moveKnight (KnightPos x y) move = case move of
+  TopLeft -> KnightPos (x - 2) (y - 1)
+  TopRight -> KnightPos (x + 2) (y - 1)
+  RightTop -> KnightPos (x + 1) (y - 2)
+  RightBottom -> KnightPos (x + 1) (y + 2)
+  BottomRight -> KnightPos (x + 2) (y + 1)
+  BottomLeft -> KnightPos (x - 2) (y + 1)
+  LeftBottom -> KnightPos (x - 1) (y + 2)
+  LeftTop -> KnightPos (x - 1) (y - 2)
+
+translate :: KnightPos -> [KnightMove] -> [KnightPos]
+translate _ [] = []
+translate pos (x : xs) = moveKnight pos x : translate (moveKnight pos x) xs
+
+findMove :: KnightPos -> KnightPos -> Either InvalidPosition KnightMove
+findMove pos1 pos2 = case filter (\x -> moveKnight pos1 x == pos2) allKnightMoves of
+  [] -> Left (InvalidPosition pos2)
+  (move:_) -> Right move
+
+translate' :: [KnightPos] -> Either InvalidPosition [KnightMove]
+translate' [] = Right []
+translate' [_] = Right []
+translate' (x : y : xs) = case findMove x y of
+  Left e -> Left e
+  Right move -> case translate' (y : xs) of
+    Left e -> Left e
+    Right moves -> Right (move : moves)
 
 -- -- Bonus (10 points)
 -- mark :: Board -> [KnightPos] -> Either InvalidPosition [[Int]]
