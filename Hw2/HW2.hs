@@ -38,13 +38,13 @@ mapMaybe f = catMaybes . map f
 -- Section 1.2 Basic Eithers
 
 concatEitherMap :: (a -> Either e b) -> Either e a -> Either e b
-concatEitherMap f = \case
+concatEitherMap f x = case x of 
   Left e -> Left e
-  Right x -> f x
+  Right y -> f y
 
 either :: (a -> c) -> (b -> c) -> Either a b -> c
-either f g = \case
-  Left x -> f x
+either f g x = case x of 
+  Left y -> f y
   Right y -> g y
 
 mapLeft :: (a -> c) -> Either a b -> Either c b
@@ -62,31 +62,31 @@ mapEither :: (a -> Either e b) -> [a] -> Either e [b]
 mapEither f = catEithers . map f
 
 partitionEithers :: [Either a b] -> ([a], [b])
-partitionEithers =
-  foldr
-    ( \x (as, bs) -> case x of
-        Left a -> (a : as, bs)
-        Right b -> (as, b : bs)
-    )
-    ([], [])
+partitionEithers = foldr aux ([], [])
+  where
+    aux (Left a) (as, bs) = (a : as, bs)
+    aux (Right b) (as, bs) = (as, b : bs)
+
 
 eitherToMaybe :: Either a b -> Maybe b
-eitherToMaybe = either (const Nothing) Just
+eitherToMaybe x = case x of
+  Left _ -> Nothing
+  Right y -> Just y
 
 -- Section 2: Lists
 take :: Int -> [a] -> [a]
-take n = \case
+take n x = case x of
   [] -> []
-  x : xs -> if n <= 0 then [] else x : take (n - 1) xs
+  y : ys -> if n <= 0 then [] else y : take (n - 1) ys
 
 takeWhile :: (a -> Bool) -> [a] -> [a]
 takeWhile _ [] = []
 takeWhile f (x : xs) = if f x then x : takeWhile f xs else []
 
 drop :: Int -> [a] -> [a]
-drop n = \case
+drop n x = case x of
   [] -> []
-  x : xs -> if n <= 0 then x : xs else drop (n - 1) xs
+  y : ys -> if n <= 0 then y : ys else drop (n - 1) ys
 
 dropWhile :: (a -> Bool) -> [a] -> [a]
 dropWhile _ [] = []
@@ -113,14 +113,19 @@ replicate :: Int -> a -> [a]
 replicate n x = if n <= 0 then [] else x : replicate (n - 1) x
 
 inits :: [a] -> [[a]]
-inits = foldr (\x acc -> [] : map (x :) acc) [[]]
+inits = foldr aux [[]]
+  where
+    aux x acc = [] : map (x :) acc
+
+head :: [a] -> a
+head [] = error "empty list"
+head (x : _) = x
 
 tails :: [a] -> [[a]]
-tails = reverse' . reverse . inits . reverse
-
-reverse' :: [[a]] -> [[a]]
-reverse' = map reverse
-
+tails = foldr aux [[]]
+  where
+    aux x acc = (x : head acc) : acc
+    
 -- -- Section 3: zips and products
 zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
 zipWith _ [] _ = []
