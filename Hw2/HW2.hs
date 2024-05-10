@@ -1,13 +1,12 @@
 {-# LANGUAGE LambdaCase #-}
--- Implement the following functions.
--- eval (-- >>>) won't work.
 {-# OPTIONS_GHC -Wall -Werror #-}
 -- Refines the above, allowing for unused imports.
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module HW2 where
 
-import Prelude (Bool (..), Bounded (..), Char, Either (..), Enum (..), Eq (..), Int, Integer, Maybe (..), Num (..), Ord (..), Show (..), String, all, and, any, concat, concatMap, const, curry, elem, error, filter, flip, foldl, foldr, fst, id, length, lines, lookup, map, not, notElem, null, product, snd, sum, tail, uncurry, undefined, unlines, unwords, words, (!!), ($), (&&), (++), (.), (||))
+import Data.List (find, foldl')
+import Prelude (Bool (..), Bounded (..), Char, Either (..), Enum (..), Eq (..), Int, Integer, Maybe (..), Num (..), Ord (..), Show (..), String, all, and, any, concat, concatMap, const, curry, div, elem, error, even, filter, flip, foldl, foldr, fst, id, length, lines, lookup, map, mod, not, notElem, null, odd, otherwise, product, snd, sum, uncurry, undefined, unlines, unwords, words, (!!), ($), (&&), (++), (.), (||))
 
 ------------------------------------------------
 -- DO NOT MODIFY ANYTHING ABOVE THIS LINE !!! --
@@ -38,12 +37,12 @@ mapMaybe f = catMaybes . map f
 -- Section 1.2 Basic Eithers
 
 concatEitherMap :: (a -> Either e b) -> Either e a -> Either e b
-concatEitherMap f x = case x of 
+concatEitherMap f x = case x of
   Left e -> Left e
   Right y -> f y
 
 either :: (a -> c) -> (b -> c) -> Either a b -> c
-either f g x = case x of 
+either f g x = case x of
   Left y -> f y
   Right y -> g y
 
@@ -125,7 +124,7 @@ tails :: [a] -> [[a]]
 tails = foldr aux [[]]
   where
     aux x acc = (x : head acc) : acc
-    
+
 -- -- Section 3: zips and products
 zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
 zipWith _ [] _ = []
@@ -171,14 +170,28 @@ allKnightMoves = [minBound .. maxBound]
 
 data Board = Board {width :: Int, height :: Int} deriving (Show, Eq)
 
+isValid :: Board -> KnightPos -> KnightMove -> Bool
+isValid (Board w h) (KnightPos x y) move = n_x >= 0 && n_y >= 0 && n_x < w && n_y < h
+    where (KnightPos n_x n_y) = moveKnight (KnightPos x y) move
+
+listValidMoves :: Board -> KnightPos -> [(KnightMove, KnightPos)]
+listValidMoves board pos = [(move, moveKnight pos move) | move <- allKnightMoves, isValid board pos move]
+
+listToMaybe :: [Maybe a] -> Maybe a
+listToMaybe = foldr aux Nothing
+    where aux x acc = maybe acc Just x
+
 tour :: Board -> KnightPos -> Maybe [KnightMove]
-tour board pos = case translate' (pos : allMoves) of
-  Left _ -> Nothing
-  Right moves -> Just moves
-  where
-    allMoves = [KnightPos x y | x <- [0 .. width board - 1], y <- [0 .. height board - 1]]
+tour board start = findATour board start [start]
 
-
+findATour :: Board -> KnightPos -> [KnightPos] -> Maybe [KnightMove]
+findATour board pos posHistory = if length posHistory == totalSquares then Just [] else listToMaybe $ concatMap evaluateMove (listValidMoves board pos)
+    where 
+        totalSquares = width board * height board
+        evaluateMove (move, newPos) = if elem newPos posHistory then [Nothing] else 
+          case findATour board newPos (newPos : posHistory) of
+                Just moves -> [Just (move : moves)]
+                Nothing -> [Nothing]
 
 newtype InvalidPosition = InvalidPosition KnightPos deriving (Show, Eq)
 
@@ -212,4 +225,5 @@ translate' (x : y : xs) = case findMove x y of
     Right moves -> Right (move : moves)
 
 -- -- Bonus (10 points)
--- mark :: Board -> [KnightPos] -> Either InvalidPosition [[Int]]
+mark :: Board -> [KnightPos] -> Either InvalidPosition [[Int]]
+mark = undefined
