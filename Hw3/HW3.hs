@@ -13,6 +13,7 @@ import Data.Either (either, fromLeft, fromRight, isLeft, isRight, lefts, partiti
 import Data.List (find, foldl', isInfixOf, isPrefixOf, isSuffixOf, nub, uncons)
 import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing, listToMaybe, mapMaybe, maybe)
 import Data.Ratio (denominator, numerator, (%))
+import Data.Text.Array (run)
 import Text.Read (readMaybe)
 import Prelude (Bool (..), Char, Either (..), Enum (..), Eq (..), Int, Integer, Maybe (..), Num (..), Ord (..), Rational, Show (..), String, all, and, any, concat, concatMap, const, curry, div, drop, dropWhile, elem, error, even, filter, flip, foldr, fst, id, init, last, length, lines, lookup, map, maximum, minimum, mod, not, notElem, null, odd, or, otherwise, product, reverse, snd, splitAt, sum, tail, take, takeWhile, uncurry, undefined, unlines, unwords, unzip, words, zip, zipWith, (!!), ($), (&&), (++), (.), (||))
 
@@ -95,9 +96,85 @@ integerSample = itake 1000 integers
 -- -- Bonus: same as rationals, but without repeats!
 -- rationals' :: InfiniteList Rational
 
--- -- Section 3: Stack Machine
--- data StackError = DivisionByZero | StackUnderflow {instruction :: String, stackValue :: Maybe Int} deriving (Show, Eq)
+-- Section 3: Stack Machine
+data StackError = DivisionByZero | StackUnderflow {instruction :: String, stackValue :: Maybe Int} deriving (Show, Eq)
 
--- data RunError = InstructionError StackError | ParseError {line :: String} deriving (Show, Eq)
+data RunError = InstructionError StackError | ParseError {line :: String} deriving (Show, Eq)
 
--- parseAndRun :: String -> Either RunError [Int]
+maybeMapList :: (a -> Maybe b) -> [a] -> Maybe [b]
+maybeMapList _ [] = Just []
+maybeMapList f (x : xs) = case f x of
+  Just y -> case maybeMapList f xs of
+    Just ys -> Just (y : ys)
+    Nothing -> Nothing
+  Nothing -> Nothing
+
+foldlEither :: (b -> a -> Either e b) -> b -> [a] -> Either e b
+foldlEither f acc [] = Right acc
+foldlEither f acc (x : xs) = case f acc x of
+  Left e -> Left e
+  Right y -> foldlEither f y xs
+
+data Instruction
+  = PUSH Int
+  | POP
+  | ADD
+  | SUB
+  | MUL
+  | DIV
+  | DUP
+  | SWAP
+  deriving (Show, Eq)
+
+parseInstruction :: String -> Maybe Instruction
+parseInstruction str = case words str of
+  ["PUSH", n] -> case readMaybe n of
+    Just x -> Just (PUSH x)
+    Nothing -> Nothing
+  ["POP"] -> Just POP
+  ["ADD"] -> Just ADD
+  ["SUB"] -> Just SUB
+  ["MUL"] -> Just MUL
+  ["DIV"] -> Just DIV
+  ["DUP"] -> Just DUP
+  ["SWAP"] -> Just SWAP
+  _ -> Nothing
+
+runInstruction :: [Int] -> Instruction -> Either StackError [Int]
+runInstruction stack = \case
+  PUSH n -> runPush n stack
+  POP -> runPop stack
+  ADD -> runOp (+) stack "ADD"
+  SUB -> runOp (-) stack "SUB"
+  MUL -> runOp (*) stack "MUL"
+  DIV -> runOp div stack "DIV"
+  DUP -> runDup stack
+  SWAP -> runSwap stack
+
+runPush :: Int -> [Int] -> Either StackError [Int]
+runPush n stack = Right (n : stack)
+
+runPop :: [Int] -> Either StackError [Int]
+runPop [] = Left (StackUnderflow "POP" Nothing)
+runPop (_ : stack) = Right stack
+
+runSwap :: [Int] -> Either StackError [Int]
+runSwap [] = Left (StackUnderflow "SWAP" Nothing)
+runSwap [x] = Left (StackUnderflow "SWAP" (Just x))
+runSwap (x : y : stack) = Right (y : x : stack)
+
+runDup :: [Int] -> Either StackError [Int]
+runDup [] = Left (StackUnderflow "DUP" Nothing)
+runDup (x : stack) = Right (x : x : stack)
+
+runOp :: (Int -> Int -> Int) -> [Int] -> String -> Either StackError [Int]
+runOp _ [] op = Left (StackUnderflow op Nothing)
+runOp _ [x] op = Left (StackUnderflow op (Just x))
+runOp f (x : y : stack) op = case op of
+  "DIV" -> if y == 0 then Left DivisionByZero else Right (f y x : stack)
+  _ -> Right (f y x : stack)
+
+parseAndRun :: String -> Either RunError [Int]
+parseAndRun str = case maybeMapList parseInstruction (lines str) of
+  Just instructions -> foldlEither runInstruction [] instructions
+  Nothing -> Left (ParseError str)
