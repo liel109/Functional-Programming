@@ -110,7 +110,7 @@ maybeMapList f (x : xs) = case f x of
   Nothing -> Nothing
 
 foldlEither :: (b -> a -> Either e b) -> b -> [a] -> Either e b
-foldlEither f acc [] = Right acc
+foldlEither _ acc [] = Right acc
 foldlEither f acc (x : xs) = case f acc x of
   Left e -> Left e
   Right y -> foldlEither f y xs
@@ -140,14 +140,19 @@ parseInstruction str = case words str of
   ["SWAP"] -> Just SWAP
   _ -> Nothing
 
-runInstruction :: [Int] -> Instruction -> Either StackError [Int]
-runInstruction stack = \case
+runInstruction :: [Int] -> Instruction -> Either RunError [Int]
+runInstruction stack instr = case runInstruction' stack instr of
+  Left err -> Left (InstructionError err)
+  Right newStack -> Right newStack
+
+runInstruction' :: [Int] -> Instruction -> Either StackError [Int]
+runInstruction' stack = \case
   PUSH n -> runPush n stack
   POP -> runPop stack
   ADD -> runOp (+) stack "ADD"
   SUB -> runOp (-) stack "SUB"
   MUL -> runOp (*) stack "MUL"
-  DIV -> runOp div stack "DIV"
+  DIV -> runDiv stack
   DUP -> runDup stack
   SWAP -> runSwap stack
 
@@ -170,11 +175,20 @@ runDup (x : stack) = Right (x : x : stack)
 runOp :: (Int -> Int -> Int) -> [Int] -> String -> Either StackError [Int]
 runOp _ [] op = Left (StackUnderflow op Nothing)
 runOp _ [x] op = Left (StackUnderflow op (Just x))
-runOp f (x : y : stack) op = case op of
-  "DIV" -> if y == 0 then Left DivisionByZero else Right (f y x : stack)
-  _ -> Right (f y x : stack)
+runOp f (x : y : stack) _ = Right (f x y : stack)
+
+runDiv :: [Int] -> Either StackError [Int]
+runDiv [] = Left (StackUnderflow "DIV" Nothing)
+runDiv [x] = Left (StackUnderflow "DIV" (Just x))
+runDiv (x : y : stack)
+  | y == 0 = Left DivisionByZero
+  | otherwise = Right (div x y : stack)
 
 parseAndRun :: String -> Either RunError [Int]
-parseAndRun str = case maybeMapList parseInstruction (lines str) of
-  Just instructions -> foldlEither runInstruction [] instructions
-  Nothing -> Left (ParseError str)
+parseAndRun str = parseAndRunLines (lines str) []
+
+parseAndRunLines :: [String] -> [Instruction] -> Either RunError [Int]
+parseAndRunLines [] acc = foldlEither runInstruction [] acc
+parseAndRunLines (line : lines') acc = case parseInstruction line of
+  Just instr -> parseAndRunLines lines' (acc ++ [instr])
+  Nothing -> Left (ParseError line)
