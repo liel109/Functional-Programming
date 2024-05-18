@@ -88,7 +88,14 @@ iconcat (x :> xs) = foldr (:>) (iconcat xs) x
 integers :: InfiniteList Integer
 integers = imap (\x -> if even x then x `div` 2 else (-x) `div` 2) naturals
 
--- rationals :: InfiniteList Rational
+pairs :: InfiniteList (Integer, Integer)
+pairs = iconcat $ imap (\q -> [(p, q) | p <- [-q..q]]) (iiterate (+1) 1)
+
+rationals :: InfiniteList Rational
+rationals = imap (\(x, y) -> x % y) pairs
+
+rationalSample :: [Rational]
+rationalSample = itake 100 rationals
 
 integerSample :: [Integer]
 integerSample = itake 1000 integers
