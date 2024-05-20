@@ -87,11 +87,17 @@ iconcat (x :> xs) = foldr (:>) (iconcat xs) x
 integers :: InfiniteList Integer
 integers = imap (\x -> if even x then x `div` 2 else (-x) `div` 2) naturals
 
-pairs :: InfiniteList (Integer, Integer)
-pairs = iconcat $ imap (\q -> [(p, q) | p <- [-q..q]]) (iiterate (+1) 1)
+rowPairs :: Integer -> [(Integer, Integer)]
+rowPairs n = [(p, q) | p <- [1 .. n], let q = n + 1 - p]
+
+interleaveSigns :: InfiniteList Rational -> InfiniteList Rational
+interleaveSigns (x :> xs) = x :> negate x :> interleaveSigns xs
 
 rationals :: InfiniteList Rational
-rationals = imap (\(x, y) -> x % y) pairs
+rationals = 0 :> interleaveSigns (imap (\(p, q) -> p % q) allPairs)
+  where
+    rows = iiterate (+ 1) 1
+    allPairs = iconcat $ imap rowPairs rows
 
 rationalSample :: [Rational]
 rationalSample = itake 100 rationals
