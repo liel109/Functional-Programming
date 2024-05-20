@@ -21,18 +21,18 @@ data Tree a = Empty | Tree (Tree a) a (Tree a) deriving (Show, Eq)
 
 serialize :: Tree Int -> [Int]
 serialize Empty = [-1]
-serialize (Tree l x r) = [x] ++ serialize l ++ serialize r
+serialize (Tree l x r) = [0, x] ++ serialize l ++ serialize r
 
 deserialize :: [Int] -> Tree Int
 deserialize = fst . deserialize'
 
 deserialize' :: [Int] -> (Tree Int, [Int])
 deserialize' (-1 : rest) = (Empty, rest)
-deserialize' (x : rest) =
+deserialize' (0 : x : rest) =
   let (leftSubtree, restLeft) = deserialize' rest
       (rightSubtree, restRight) = deserialize' restLeft
    in (Tree leftSubtree x rightSubtree, restRight)
-deserialize' [] = error "deserialize: empty list"
+deserialize' _ = error "deserialize: invalid input list"
 
 -- Section 2: Infinite lists
 data InfiniteList a = a :> InfiniteList a

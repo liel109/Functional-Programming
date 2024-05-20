@@ -23,6 +23,11 @@ testCases =
         (Tree (Tree Empty 1 Empty) 2 (Tree Empty 3 Empty)),
     return $
       check
+        "Serialize/Deserialize Test with negative values"
+        (deserialize (serialize (Tree (Tree Empty (-1) Empty) (-2) (Tree Empty (-3) Empty))))
+        (Tree (Tree Empty (-1) Empty) (-2) (Tree Empty (-3) Empty)),
+    return $
+      check
         "Serialize/Deserialize Test 2"
         (deserialize (serialize (Tree Empty 1 (Tree (Tree Empty 2 Empty) 3 Empty))))
         (Tree Empty 1 (Tree (Tree Empty 2 Empty) 3 Empty)),
@@ -107,7 +112,7 @@ testCases =
         "InfiniteList ifind Test"
         (ifind (> 10) naturals)
         11,
-        return $
+    return $
       check
         "parseAndRun Test 1"
         (parseAndRun "PUSH 1\nPUSH 2\nBad!\nNo!")
@@ -116,7 +121,7 @@ testCases =
       check
         "parseAndRun Test 2"
         (parseAndRun "PUSH 2\nPOP\nPOP")
-        (Left (InstructionError (StackUnderflow { instruction = "POP", stackValue = Nothing }))),
+        (Left (InstructionError (StackUnderflow {instruction = "POP", stackValue = Nothing}))),
     return $
       check
         "parseAndRun Test 3"
