@@ -24,11 +24,27 @@ class Serializable a where
   serialize :: a -> [Int]
   deserialize :: [Int] -> a
 
-instance Serializable Int
-instance Serializable Bool
-instance Serializable Char
-instance Serializable a => Serializable (Maybe a)
-instance (Serializable a, Serializable b) => Serializable (a, b)
+instance Serializable Int where
+  serialize a = [a]
+  deserialize [a] = a 
+
+instance Serializable Bool where
+  serialize True = [1]
+  serialize False = [0]
+  deserialize [1] = True
+  deserialize [0] = False
+
+instance Serializable Char where
+  serialize a = [ord a]
+  deserialize [a] = chr a
+
+instance Serializable a => Serializable (Maybe a) where
+  serialize Nothing = [0]
+  serialize (Just a) = 1 : serialize a
+  deserialize [0] = Nothing
+  deserialize (1 : a) = Just (deserialize a)
+
+instance (Serializable a, Serializable b) => Serializable (a, b) 
 instance (Serializable a, Serializable b) => Serializable (Either a b)
 instance Serializable a => Serializable [a]
 instance (Serializable a, Eq a) => Serializable (EqSet a)
