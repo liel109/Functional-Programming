@@ -11,7 +11,6 @@ module HW4 where
 
 import Data.Char (chr, ord)
 import Data.Either
-import Data.IntMap qualified as Eq
 import Data.List
 import Data.Maybe
 import Data.Semigroup (Arg (..))
@@ -134,19 +133,40 @@ instance (Metric a) => Metric (ManhattanList a) where
 -- Returns the element with the shortest distance to the input.
 -- If there are no numbers whose distance is less than infinity, return Nothing.
 closest :: (Metric a) => a -> [a] -> Maybe a
-closest a xs = closest' a xs infinity a
+closest = closestOn id
 
-closest' :: (Metric a) => a -> [a] -> Double -> a -> Maybe a
-closest' a (x : xs) d c = if distance a x < d then closest' a xs (distance a x) x else closest' a xs d c
-closest' _ [] d c = if d == infinity then Nothing else Just c
+-- Similar to the above, but uses a function move the element
+-- to another metric space.
+closestOn :: (Metric b) => (a -> b) -> a -> [a] -> Maybe a
+closestOn f a xs = closestOn' f a xs infinity a
 
--- -- Similar to the above, but uses a function move the element
--- -- to another metric space.
--- closestOn :: (Metric b) => (a -> b) -> a -> [a] -> Maybe a
--- -- Will not swap elements whose distance is less than d, even if their
--- -- order implies they should be swapped.
--- metricBubbleSort :: (Metric a, Ord a) => Double -> [a] -> [a]
--- -- Similar to the above, but uses a function to extract the value used for sorting.
--- metricBubbleSortOn :: (Metric b, Ord b) => (a -> b) -> Double -> [a] -> [a]
--- -- Bonus (10 points).
+closestOn' :: (Metric b) => (a -> b) -> a -> [a] -> Double -> a -> Maybe a
+closestOn' f a (x : xs) d c = if distance (f a) (f x) < d then closestOn' f a xs (distance (f a) (f x)) x else closestOn' f a xs d c
+closestOn' _ _ [] d c = if d == infinity then Nothing else Just c
+
+-- Will not swap elements whose distance is less than d, even if their
+-- order implies they should be swapped.
+metricBubbleSort :: (Metric a, Ord a) => Double -> [a] -> [a]
+metricBubbleSort = metricBubbleSortOn id
+
+-- Similar to the above, but uses a function to extract the value used for sorting.
+metricBubbleSortOn :: (Metric b, Ord b) => (a -> b) -> Double -> [a] -> [a]
+metricBubbleSortOn f d xs = applyN (length xs) (bubbleOn f d) xs
+
+bubbleOn :: (Metric b, Ord b) => (a -> b) -> Double -> [a] -> [a]
+bubbleOn _ _ [] = []
+bubbleOn _ _ [x] = [x]
+bubbleOn f d (x : y : xs)
+  | f x > f y && distance (f x) (f y) >= d = y : bubbleOn f d (x : xs)
+  | otherwise = x : bubbleOn f d (y : xs)
+
+applyN :: Int -> (a -> a) -> a -> a
+applyN 0 _ = id
+applyN n f = f . applyN (n - 1) f
+
+-- Bonus (10 points).
 -- clusters :: (Metric a) => [a] -> [[a]]
+-- clusters [] = []
+-- clusters (x : xs) =
+--   let (cluster, rest) = partition ((< infinity) . distance x) xs
+--    in (x : cluster) : clusters rest
