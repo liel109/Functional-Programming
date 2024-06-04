@@ -59,7 +59,8 @@ testCases =
     return $ check "Distance ManhattanTuple" (distance (ManhattanTuple 1 2 :: ManhattanTuple Int Int) (ManhattanTuple 4 6)) 7.0,
     -- Test sort
     return $ check "Metric Bubble Sort" (metricBubbleSort 1.5 ([4, 2, 3, 1] :: [Int])) [2, 1, 4, 3],
-    return $ check "Metric Bubble Sort On" (metricBubbleSortOn id 1.5 ([4, 2, 3, 1] :: [Int])) [2, 1, 4, 3]
+    return $ check "Metric Bubble Sort On" (metricBubbleSortOn id 1.5 ([4, 2, 3, 1] :: [Int])) [2, 1, 4, 3],
+    return $ check "Metric Bubble Sort On" (metricBubbleSortOn (* 2) 1.5 ([4, 2, 3, 1] :: [Int])) [1, 2, 3, 4]
   ]
 
 -- Main function to run all tests and print results selectively

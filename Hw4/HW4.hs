@@ -96,7 +96,7 @@ instance Metric Char where
 
 -- Euclidean distance
 instance (Metric a, Metric b) => Metric (a, b) where
-  distance (a1, b1) (a2, b2) = sqrt ((distance a1 a2) ** 2 + (distance b1 b2) ** 2)
+  distance (a1, b1) (a2, b2) = sqrt (distance a1 a2 ** 2 + distance b1 b2 ** 2)
 
 data ManhattanTuple a b = ManhattanTuple a b deriving (Eq)
 
@@ -165,8 +165,5 @@ applyN 0 _ = id
 applyN n f = f . applyN (n - 1) f
 
 -- Bonus (10 points).
--- clusters :: (Metric a) => [a] -> [[a]]
--- clusters [] = []
--- clusters (x : xs) =
---   let (cluster, rest) = partition ((< infinity) . distance x) xs
---    in (x : cluster) : clusters rest
+clusters :: (Metric a) => [a] -> [[a]]
+clusters = undefined

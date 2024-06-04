@@ -106,8 +106,9 @@ rationalSample = itake 100 rationals
 integerSample :: [Integer]
 integerSample = itake 1000 integers
 
--- -- Bonus: same as rationals, but without repeats!
--- rationals' :: InfiniteList Rational
+-- Bonus: same as rationals, but without repeats!
+rationals' :: InfiniteList Rational
+rationals' = undefined
 
 -- Section 3: Stack Machine
 data StackError = DivisionByZero | StackUnderflow {instruction :: String, stackValue :: Maybe Int} deriving (Show, Eq)
