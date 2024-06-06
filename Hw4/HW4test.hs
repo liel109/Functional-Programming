@@ -51,6 +51,9 @@ testCases =
     return $ check "Serialize/Deserialize Either Left" (roundTrip (Left 42 :: Either Int Bool)) True,
     return $ check "Serialize/Deserialize Either Right" (roundTrip (Right True :: Either Int Bool)) True,
     return $ check "Serialize/Deserialize List" (roundTrip ([1, 2, 3] :: [Int])) True,
+    return $ check "Serialize/Deserialize List" (roundTrip ([True, False, False] :: [Bool])) True,
+    return $ check "Serialize/Deserialize List" (roundTrip ([Just 1, Nothing, Just 2] :: [Maybe Int])) True,
+    return $ check "Serialize/Deserialize List" (roundTrip ("abc" :: [Char])) True,
     -- Test distance functions
     return $ check "Distance Int" (distance (1 :: Int) (2 :: Int)) 1.0,
     return $ check "Distance Double" (distance (1.0 :: Double) (2.0 :: Double)) 1.0,
@@ -66,7 +69,7 @@ testCases =
 -- Main function to run all tests and print results selectively
 main :: IO ()
 main = do
-  putStrLn "Running tests for HW3.hs..."
+  putStrLn "Running tests for HW4.hs..."
   results <- sequence testCases
   let failures = filter (not . fst) results
   if null failures

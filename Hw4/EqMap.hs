@@ -50,7 +50,12 @@ assocs (EqMap m) = go (EqSet.elems m)
     go (Arg k v : xs) = (k, v) : go xs
 
 instance (Eq k, Eq v) => Eq (EqMap k v) where
-  m1 == m2 = getMap m1 == getMap m2
+  m1 == m2 = all (`aux` listm2) listm1 && all (`aux` listm1) listm2
+    where
+      listm1 = EqSet.elems (getMap m1)
+      listm2 = EqSet.elems (getMap m2)
+      aux _ [] = False
+      aux (Arg k1 v1) (Arg k2 v2 : rest) = (k1 == k2 && v1 == v2) || aux (Arg k1 v1) rest
 
 instance (Show k, Show v) => Show (EqMap k v) where
   show :: (Show k, Show v) => EqMap k v -> String

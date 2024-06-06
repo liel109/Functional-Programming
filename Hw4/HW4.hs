@@ -62,13 +62,20 @@ instance (Serializable a, Serializable b) => Serializable (Either a b) where
   deserialize _ = error "Invalid"
 
 instance (Serializable a) => Serializable [a] where
-  serialize [] = [0]
-  serialize (x : xs) = 1 : serialize x ++ serialize xs
-  deserialize [0] = []
-  deserialize (1 : x) =
-    let (a, b) = splitAt (length (serialize (undefined :: a))) x
-     in deserialize a : deserialize b
-  deserialize _ = error "Invalid"
+   serialize [] = [0]
+   serialize xs = 0 : concatMap serializeWithLength xs
+    where
+      serializeWithLength x = let sx = serialize x
+                              in length sx : sx
+
+   deserialize [0] = []
+   deserialize (0 : xs) = go xs
+    where
+      go [] = []
+      go (len : ys) =
+        let (a, rest) = splitAt len ys
+        in deserialize a : go rest
+   deserialize _ = error "Invalid"
 
 instance (Serializable a, Eq a) => Serializable (EqSet a) where
   serialize = serialize . EqSet.elems
