@@ -12,9 +12,10 @@ empty = Deque [] []
 
 data Deque a = Deque [a] [a]
 
-instance Eq a => Eq (Deque a) where
+instance (Eq a) => Eq (Deque a) where
   Deque l r == Deque l' r' = l ++ reverse r == l' ++ reverse r'
-instance Show a => Show (Deque a) where
+
+instance (Show a) => Show (Deque a) where
   show (Deque l r) = show (l ++ reverse r)
 
 pushl :: a -> Deque a -> Deque a
@@ -36,8 +37,22 @@ popr = \case
   Deque l [] -> popr $ Deque [] (reverse l)
 
 instance Semigroup (Deque a) where
+  Deque l1 r1 <> Deque l2 r2 = Deque (l1 ++ reverse r1 ++ l2) r2
+
 instance Monoid (Deque a) where
+  mempty = empty
+
 instance Foldable Deque where
+  foldMap f (Deque l r) = foldMap f (l ++ reverse r)
+
 instance Functor Deque where
+  fmap f (Deque l r) = Deque (fmap f l) (fmap f r)
+
 instance Applicative Deque where
+  pure x = Deque [x] []
+  Deque lf rf <*> Deque lx rx = Deque (lf <*> lx ++ reverse rx) (rf <*> lx ++ reverse rx)
+
 instance Monad Deque where
+  Deque l r >>= f = foldr (appendDeque . f) empty (l ++ reverse r)
+    where
+      appendDeque (Deque l1 r1) (Deque l2 r2) = Deque (l1 ++ reverse r1 ++ l2) r2
