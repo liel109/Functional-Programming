@@ -7,9 +7,12 @@
 -- Refines the above, allowing for unused imports.
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
+-- remove at the end
+module HW5 where
+
+
 import Control.Applicative (liftA2)
-import Control.Monad (when)
-import Data.Char (ord)
+import Data.Char (chr, ord, toLower, toUpper)
 import Data.Either
 import Data.List (foldl', uncons)
 import Data.Map (Map, (!?))
@@ -41,20 +44,17 @@ fmfold = FoldMapFunc id id
 fmelem :: (Eq a) => a -> FoldMapFunc a Any Bool
 fmelem x = FoldMapFunc (Any . (== x)) getAny
 
--- fmfind :: (a -> Bool) -> FoldMapFunc a _ (Maybe a)
+fmfind :: (a -> Bool) -> FoldMapFunc a (First a) (Maybe a)
+fmfind f = FoldMapFunc (\x -> if f x then First (Just x) else First Nothing) getFirst
 
 fmlength :: FoldMapFunc a (Sum Int) Int
-fmlength = FoldMapFunc (const $ Sum 1) getSum
+fmlength = FoldMapFunc (const (Sum 1)) getSum
 
 fmnull :: FoldMapFunc a All Bool
 fmnull = FoldMapFunc (const $ All False) getAll
 
-fmmaximum :: (Ord a) => FoldMapFunc a (Max (Maybe a)) (Maybe a)
-fmmaximum = FoldMapFunc (Max . Just) getMax
-
-fmminimum :: (Ord a) => FoldMapFunc a (Min (Maybe a)) (Maybe a)
-fmminimum = FoldMapFunc (Min . Just) getMin
-
+-- fmmaximum :: (Ord a) => FoldMapFunc a (First a) (Maybe a)
+-- fmminimum :: (Ord a) => FoldMapFunc a (Min (Maybe a)) (Maybe a)
 -- fmmaxBy :: Ord b => (a -> b) -> FoldMapFunc a _ (Maybe a)
 -- fmminBy :: Ord b => (a -> b) -> FoldMapFunc a _ (Maybe a)
 
@@ -65,68 +65,140 @@ fmtoList = FoldMapFunc (: []) id
 newtype DequeWrapper a = DequeWrapper (Deque a) deriving (Show, Eq)
 
 instance Semigroup (DequeWrapper a) where
-  DequeWrapper dq1 <> DequeWrapper dq2 = DequeWrapper $ dq1 <> dq2
-
+  DequeWrapper dq1 <> DequeWrapper dq2 = DequeWrapper (appendDeque dq1 dq2)
+    where
+      appendDeque dq1' dq2' = case DQ.popl dq2' of
+                              Nothing -> dq1'
+                              Just (x, dq2'') -> appendDeque (DQ.pushr x dq1') dq2''
+                     
 instance Monoid (DequeWrapper a) where
   mempty = DequeWrapper DQ.empty
 
 instance Foldable DequeWrapper where
-  foldMap f (DequeWrapper dq) = foldMap f dq
+  foldMap f (DequeWrapper dq) = foldMapD dq
+    where foldMapD dq' = case DQ.popl dq' of
+                            Nothing -> mempty
+                            Just (x, dq'') -> f x <> foldMapD dq''
 
 instance Functor DequeWrapper where
-  fmap f (DequeWrapper dq) = DequeWrapper $ fmap f dq
+  fmap f (DequeWrapper dq) = DequeWrapper (fmapD dq)
+    where fmapD dq' = case DQ.popr dq' of
+                          Nothing -> DQ.empty
+                          Just (x, dq'') -> DQ.pushr (f x) (fmapD dq'')
 
 instance Applicative DequeWrapper where
-  pure x = DequeWrapper $ pure x
-  DequeWrapper dq1 <*> DequeWrapper dq2 = DequeWrapper $ dq1 <*> dq2
+  pure x = DequeWrapper (DQ.pushl x DQ.empty)
+  liftA2 f (DequeWrapper d1) (DequeWrapper d2) = DequeWrapper (loopD1 d1 d2)
+    where
+      loopD1 dq1 dq2 = case DQ.popl dq1 of
+        Just (x, rest) -> combine (loopD2 x dq2) (loopD1 rest dq2)
+        Nothing -> DQ.empty
+
+      loopD2 x1 dq = case DQ.popl dq of
+        Just (x2, rest) -> DQ.pushl (f x1 x2) (loopD2 x1 rest)
+        Nothing -> DQ.empty
+
+      combine dq1 dq2 = case DQ.popl dq1 of
+        Just (x, rest) -> DQ.pushl x (combine rest dq2)
+        Nothing -> dq2
 
 instance Monad DequeWrapper where
-  DequeWrapper dq >>= f = DequeWrapper (dq >>= (\x -> let DequeWrapper dq' = f x in dq'))
+  return = pure
+  (>>=) = flip foldMap
 
--- -- Section 3: Calculator and traverse
--- class Monad f => CalculatorError f where
---   divideByZero :: f Int
---   missingVariable :: String -> f Int
+-- Section 3: Calculator and traverse
+class Monad f => CalculatorError f where
+  divideByZero :: f Int
+  missingVariable :: String -> f Int
 
--- runCalculator :: CalculatorError f => Map String Int -> Expr -> f Int
+runCalculator :: CalculatorError f => Map String Int -> Expr -> f Int
+runCalculator vars = go
+  where
+    go = \case
+      Val x -> pure x
+      Var x -> maybe (missingVariable x) pure (vars !? x)
+      Add x y -> liftA2 (+) (go x) (go y)
+      Sub x y -> liftA2 (-) (go x) (go y)
+      Mul x y -> liftA2 (*) (go x) (go y)
+      Div x y -> do
+        y' <- go y
+        if y' == 0 then divideByZero else liftA2 div (go x) (pure y')
 
--- -- Instances to implement:
--- instance CalculatorError Maybe
+-- Instances to implement:
+instance CalculatorError Maybe where
+  divideByZero = Nothing
+  missingVariable _ = Nothing
 
--- data Err = DivByZero | MissingVar String deriving (Show, Eq)
--- instance CalculatorError (Either Err)
+data Err = DivByZero | MissingVar String deriving (Show, Eq)
+instance CalculatorError (Either Err) where
+  divideByZero = Left DivByZero
+  missingVariable = Left . MissingVar
 
--- data Defaults
---   = Defaults
---   -- This replaces the entire division result, not just the denominator!
---   { defaultForDivisionByZero :: Int
---   , defaultForVariable :: String -> Int
---   }
--- defaults =
---   Defaults
---     { defaultForDivisionByZero = 0
---     , defaultForVariable = sum . map ord
---     }
--- instance CalculatorError (Reader Defaults)
+data Defaults
+  = Defaults
+  -- This replaces the entire division result, not just the denominator!
+  { defaultForDivisionByZero :: Int
+  , defaultForVariable :: String -> Int
+  }
+instance CalculatorError (Reader Defaults) where 
+  divideByZero = Reader $ \Defaults {defaultForDivisionByZero} -> defaultForDivisionByZero
+  missingVariable x = Reader $ \Defaults {defaultForVariable} -> defaultForVariable x
 
--- -- From the lectures:
--- newtype Reader r a = Reader {runReader :: r -> a}
--- instance Functor (Reader r) where
---   fmap f r = Reader $ f . runReader r
--- instance Applicative (Reader r) where
---   pure = Reader . const
---   liftA2 f ra rb = Reader $ \r -> f (runReader ra r) (runReader rb r)
--- instance Monad (Reader r) where
---   ra >>= f = Reader $ \r -> runReader (f $ runReader ra r) r
+-- From the lectures:
+newtype Reader r a = Reader {runReader :: r -> a}
+instance Functor (Reader r) where
+  fmap f r = Reader $ f . runReader r
+instance Applicative (Reader r) where
+  pure = Reader . const
+  liftA2 f ra rb = Reader $ \r -> f (runReader ra r) (runReader rb r)
+instance Monad (Reader r) where
+  ra >>= f = Reader $ \r -> runReader (f $ runReader ra r) r
 
--- data Expr
---   = Val Int
---   | Var String
---   | Add Expr Expr
---   | Sub Expr Expr
---   | Mul Expr Expr
---   | Div Expr Expr
---   deriving (Show, Eq)
+data Expr
+  = Val Int
+  | Var String
+  | Add Expr Expr
+  | Sub Expr Expr
+  | Mul Expr Expr
+  | Div Expr Expr
+  deriving (Show, Eq)
 
--- -- Section 4: Hangman
--- hangman :: String -> IO Int
+-- Section 4: Hangman
+type Score = Int
+
+hangman :: String -> IO Score
+hangman word = do
+  let uniqueLetters = S.size . S.fromList $ filter isLetter word
+  playHangman word [] 0 uniqueLetters
+
+playHangman :: String -> [Char] -> Int -> Int -> IO Score
+playHangman word guessed tries unique = do
+  putStrLn (displayWord word guessed)
+  if all (`elem` guessed) (filter isLetter word) then
+    return (tries - unique)
+  else do
+    putStr "Guess a letter: "
+    guess <- getChar
+    if not (isLetter guess) then do
+      putStrLn ""
+      playHangman word guessed tries unique
+    else do
+      let letter = toLower guess
+      if letter `elem` guessed then do
+        putStrLn "You already guessed that letter. Try again."
+        putStrLn ""
+        playHangman word guessed tries unique
+      else if letter `elem` map toLower word then do
+        let newGuessed = letter : guessed
+        putStrLn ""
+        playHangman word newGuessed (tries + 1) unique
+      else do
+        putStrLn "Wrong guess!"
+        putStrLn ""
+        playHangman word (letter : guessed) (tries + 1) unique
+
+displayWord :: String -> [Char] -> String
+displayWord word guessed = unwords [[if toLower c `elem` guessed || not (isLetter c) then c else '_' | c <- word]]
+
+isLetter :: Char -> Bool
+isLetter c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
