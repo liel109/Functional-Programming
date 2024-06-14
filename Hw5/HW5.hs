@@ -24,6 +24,7 @@ import Data.Set (Set)
 import Data.Set qualified as S
 import Deque (Deque)
 import Deque qualified as DQ
+import System.Console.Haskeline
 
 data FoldMapFunc a m result = FoldMapFunc {agg :: a -> m, finalize :: m -> result}
 
@@ -52,7 +53,36 @@ fmlength = FoldMapFunc (const (Sum 1)) getSum
 fmnull :: FoldMapFunc a All Bool
 fmnull = FoldMapFunc (const $ All False) getAll
 
--- fmmaximum :: (Ord a) => FoldMapFunc a (First a) (Maybe a)
+-- Custom monoid for maximum and minimum with Maybe
+newtype MaxMaybe a = MaxMaybe { getMaxMaybe :: Maybe a } deriving (Eq, Show)
+instance (Ord a) => Semigroup (MaxMaybe a) where
+  MaxMaybe Nothing <> b = b
+  a <> MaxMaybe Nothing = a
+  MaxMaybe (Just a) <> MaxMaybe (Just b) = MaxMaybe (Just (max a b))
+instance (Ord a) => Monoid (MaxMaybe a) where
+  mempty = MaxMaybe Nothing
+
+newtype MinMaybe a = MinMaybe { getMinMaybe :: Maybe a } deriving (Eq, Show)
+instance (Ord a) => Semigroup (MinMaybe a) where
+  MinMaybe Nothing <> b = b
+  a <> MinMaybe Nothing = a
+  MinMaybe (Just a) <> MinMaybe (Just b) = MinMaybe (Just (min a b))
+instance (Ord a) => Monoid (MinMaybe a) where
+  mempty = MinMaybe Nothing
+
+fmmaximum :: (Ord a) => FoldMapFunc a (MaxMaybe a) (Maybe a)
+fmmaximum = FoldMapFunc (MaxMaybe . Just) getMaxMaybe
+
+fmminimum :: (Ord a) => FoldMapFunc a (MinMaybe a) (Maybe a)
+fmminimum = FoldMapFunc (MinMaybe . Just) getMinMaybe
+
+-- fmmaxBy :: Ord b => (a -> b) -> FoldMapFunc a (First (Maybe (b, a))) (Maybe a)
+-- fmmaxBy f = FoldMapFunc (\x -> First $ Just (f x, x)) (fmap snd . getFirst)
+
+-- fmminBy :: Ord b => (a -> b) -> FoldMapFunc a (First (Maybe (b, a))) (Maybe a)
+-- fmminBy f = FoldMapFunc (\x -> First $ Just (f x, x)) (fmap snd . getFirst)
+
+-- fmmaximum :: (Ord a) => FoldMapFunc a (Maybe a) (Maybe a)
 -- fmminimum :: (Ord a) => FoldMapFunc a (Min (Maybe a)) (Maybe a)
 -- fmmaxBy :: Ord b => (a -> b) -> FoldMapFunc a _ (Maybe a)
 -- fmminBy :: Ord b => (a -> b) -> FoldMapFunc a _ (Maybe a)
@@ -172,48 +202,56 @@ data Expr
 -- Section 4: Hangman
 type Score = Int
 
+getChar' :: IO Char
+getChar' = runInputT defaultSettings $ fromJust <$> getInputChar ""
+
 hangman :: String -> IO Score
 hangman word = do
   let uniqueLetters = S.size . S.fromList $ filter isLetter word
-  playHangman word [] 0 uniqueLetters True
+  playHangman word [] 0 uniqueLetters True 0
 
 -- Game loop function
-playHangman :: String -> [Char] -> Int -> Int -> Bool -> IO Score
-playHangman word guessed tries unique printWord = do
+playHangman :: String -> [Char] -> Int -> Int -> Bool -> Int -> IO Score
+playHangman word guessed tries unique printWord counter = do
   if printWord
     then do
       putStrLn (displayWord word guessed)
       putStr "Guess a letter: "
     else return ()
-  guess <- getChar
-  _ <- getChar -- consume the newline character
+  guess <- getChar'
   if not (isLetter guess)
     then do
-      putStrLn ("Invalid letter guess " ++ [guess] ++ "!")
-      putStrLn (displayWord word guessed)
-      putStr "Try again :"
-      playHangman word guessed tries unique False
+      if guess == '?'
+        then do
+          putStr "Remaining letters: "
+          putStrLn (remainingLetters (S.fromList guessed))
+          playHangman word guessed tries unique True counter
+        else do
+          putStrLn ("Invalid letter guess " ++ [guess] ++ "!")
+          putStrLn (displayWord word guessed)
+          putStr "Try again :"
+          playHangman word guessed tries unique False counter
     else do
       let letter = toLower guess
       if letter `elem` guessed
         then do
-          playHangman word guessed tries unique True
+          playHangman word guessed (tries + 1) unique True counter
         else
           if letter `elem` map toLower word
             then do
               let newGuessed = letter : guessed
-              if length newGuessed == unique
+              if (counter + 1) == unique
                 then do
                   putStrLn "Very good, the word is:"
                   putStrLn word
                   return (tries + 1 - unique)
                 else
-                  playHangman word newGuessed (tries + 1) unique True
+                  playHangman word newGuessed (tries + 1) unique True (counter + 1)
             else do
               putStrLn "Wrong guess!"
               putStrLn (displayWord word guessed)
               putStr "Try again :"
-              playHangman word guessed (tries + 1) unique False
+              playHangman word (letter : guessed) (tries + 1) unique False counter
 
 -- Display the word with guessed letters revealed
 displayWord :: String -> [Char] -> String
@@ -221,3 +259,6 @@ displayWord word guessed = unwords [[if toLower c `elem` guessed || not (isLette
 
 isLetter :: Char -> Bool
 isLetter c = c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+
+remainingLetters :: Set Char -> String
+remainingLetters guessed = "[" ++ S.toList (S.difference (S.fromList ['a' .. 'z']) guessed) ++ "]"
