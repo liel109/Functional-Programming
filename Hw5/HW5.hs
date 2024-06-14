@@ -10,7 +10,6 @@
 -- remove at the end
 module HW5 where
 
-
 import Control.Applicative (liftA2)
 import Data.Char (chr, ord, toLower, toUpper)
 import Data.Either
@@ -68,23 +67,25 @@ instance Semigroup (DequeWrapper a) where
   DequeWrapper dq1 <> DequeWrapper dq2 = DequeWrapper (appendDeque dq1 dq2)
     where
       appendDeque dq1' dq2' = case DQ.popl dq2' of
-                              Nothing -> dq1'
-                              Just (x, dq2'') -> appendDeque (DQ.pushr x dq1') dq2''
-                     
+        Nothing -> dq1'
+        Just (x, dq2'') -> appendDeque (DQ.pushr x dq1') dq2''
+
 instance Monoid (DequeWrapper a) where
   mempty = DequeWrapper DQ.empty
 
 instance Foldable DequeWrapper where
   foldMap f (DequeWrapper dq) = foldMapD dq
-    where foldMapD dq' = case DQ.popl dq' of
-                            Nothing -> mempty
-                            Just (x, dq'') -> f x <> foldMapD dq''
+    where
+      foldMapD dq' = case DQ.popl dq' of
+        Nothing -> mempty
+        Just (x, dq'') -> f x <> foldMapD dq''
 
 instance Functor DequeWrapper where
   fmap f (DequeWrapper dq) = DequeWrapper (fmapD dq)
-    where fmapD dq' = case DQ.popr dq' of
-                          Nothing -> DQ.empty
-                          Just (x, dq'') -> DQ.pushr (f x) (fmapD dq'')
+    where
+      fmapD dq' = case DQ.popr dq' of
+        Nothing -> DQ.empty
+        Just (x, dq'') -> DQ.pushr (f x) (fmapD dq'')
 
 instance Applicative DequeWrapper where
   pure x = DequeWrapper (DQ.pushl x DQ.empty)
@@ -107,11 +108,11 @@ instance Monad DequeWrapper where
   (>>=) = flip foldMap
 
 -- Section 3: Calculator and traverse
-class Monad f => CalculatorError f where
+class (Monad f) => CalculatorError f where
   divideByZero :: f Int
   missingVariable :: String -> f Int
 
-runCalculator :: CalculatorError f => Map String Int -> Expr -> f Int
+runCalculator :: (CalculatorError f) => Map String Int -> Expr -> f Int
 runCalculator vars = go
   where
     go = \case
@@ -130,6 +131,7 @@ instance CalculatorError Maybe where
   missingVariable _ = Nothing
 
 data Err = DivByZero | MissingVar String deriving (Show, Eq)
+
 instance CalculatorError (Either Err) where
   divideByZero = Left DivByZero
   missingVariable = Left . MissingVar
@@ -137,20 +139,24 @@ instance CalculatorError (Either Err) where
 data Defaults
   = Defaults
   -- This replaces the entire division result, not just the denominator!
-  { defaultForDivisionByZero :: Int
-  , defaultForVariable :: String -> Int
+  { defaultForDivisionByZero :: Int,
+    defaultForVariable :: String -> Int
   }
-instance CalculatorError (Reader Defaults) where 
+
+instance CalculatorError (Reader Defaults) where
   divideByZero = Reader $ \Defaults {defaultForDivisionByZero} -> defaultForDivisionByZero
   missingVariable x = Reader $ \Defaults {defaultForVariable} -> defaultForVariable x
 
 -- From the lectures:
 newtype Reader r a = Reader {runReader :: r -> a}
+
 instance Functor (Reader r) where
   fmap f r = Reader $ f . runReader r
+
 instance Applicative (Reader r) where
   pure = Reader . const
   liftA2 f ra rb = Reader $ \r -> f (runReader ra r) (runReader rb r)
+
 instance Monad (Reader r) where
   ra >>= f = Reader $ \r -> runReader (f $ runReader ra r) r
 
@@ -169,36 +175,49 @@ type Score = Int
 hangman :: String -> IO Score
 hangman word = do
   let uniqueLetters = S.size . S.fromList $ filter isLetter word
-  playHangman word [] 0 uniqueLetters
+  playHangman word [] 0 uniqueLetters True
 
-playHangman :: String -> [Char] -> Int -> Int -> IO Score
-playHangman word guessed tries unique = do
-  putStrLn (displayWord word guessed)
-  if all (`elem` guessed) (filter isLetter word) then
-    return (tries - unique)
-  else do
-    putStr "Guess a letter: "
-    guess <- getChar
-    if not (isLetter guess) then do
-      putStrLn ""
-      playHangman word guessed tries unique
+-- Game loop function
+playHangman :: String -> [Char] -> Int -> Int -> Bool -> IO Score
+playHangman word guessed tries unique printWord = do
+  if printWord
+    then do
+      putStrLn (displayWord word guessed)
+      putStr "Guess a letter: "
+    else return ()
+  guess <- getChar
+  _ <- getChar -- consume the newline character
+  if not (isLetter guess)
+    then do
+      putStrLn ("Invalid letter guess " ++ [guess] ++ "!")
+      putStrLn (displayWord word guessed)
+      putStr "Try again :"
+      playHangman word guessed tries unique False
     else do
       let letter = toLower guess
-      if letter `elem` guessed then do
-        putStrLn "You already guessed that letter. Try again."
-        putStrLn ""
-        playHangman word guessed tries unique
-      else if letter `elem` map toLower word then do
-        let newGuessed = letter : guessed
-        putStrLn ""
-        playHangman word newGuessed (tries + 1) unique
-      else do
-        putStrLn "Wrong guess!"
-        putStrLn ""
-        playHangman word (letter : guessed) (tries + 1) unique
+      if letter `elem` guessed
+        then do
+          playHangman word guessed tries unique True
+        else
+          if letter `elem` map toLower word
+            then do
+              let newGuessed = letter : guessed
+              if length newGuessed == unique
+                then do
+                  putStrLn "Very good, the word is:"
+                  putStrLn word
+                  return (tries + 1 - unique)
+                else
+                  playHangman word newGuessed (tries + 1) unique True
+            else do
+              putStrLn "Wrong guess!"
+              putStrLn (displayWord word guessed)
+              putStr "Try again :"
+              playHangman word guessed (tries + 1) unique False
 
+-- Display the word with guessed letters revealed
 displayWord :: String -> [Char] -> String
 displayWord word guessed = unwords [[if toLower c `elem` guessed || not (isLetter c) then c else '_' | c <- word]]
 
 isLetter :: Char -> Bool
-isLetter c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+isLetter c = c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
