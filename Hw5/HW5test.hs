@@ -37,6 +37,7 @@ defaults =
 go :: (CalculatorError f) => [Expr] -> f [Int]
 go = traverse $ runCalculator variables
 
+
 -- List of all test cases, structured for easy extension
 testCases :: [IO (Bool, String)]
 testCases =
@@ -47,6 +48,10 @@ testCases =
     return $ check "elem test" (foldMap' (fmelem 2) [1, 2, 3]) True,
     return $ check "find test 1" (foldMap' (fmfind (> 2)) [1, 2, 3]) (Just 3),
     return $ check "find test 2" (foldMap' (fmfind (> 3)) [1, 2, 3]) Nothing,
+    return $ check "max test 1" (foldMap'  fmmaximum [1, 2, 3]) (Just 3),
+    return $ check "min test 1" (foldMap'  fmminimum [1, 2, 3]) (Just 1),
+    return $ check "maxby test 1" (foldMap' (fmmaxBy length) ["foo", "bar", "bazz"]) (Just "bazz"),
+    return $ check "maxby test 1" (foldMap' (fmminBy length) ["foo", "bar", "bazz", "ci"]) (Just "ci"),
     return $ check "length test" (foldMap' fmlength [1, 2, 3]) 3,
     return $ check "null test 1" (foldMap' fmnull [1, 2, 3]) False,
     return $ check "null test 2" (foldMap' fmnull []) True,

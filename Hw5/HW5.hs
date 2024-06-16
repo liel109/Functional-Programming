@@ -53,39 +53,19 @@ fmlength = FoldMapFunc (const (Sum 1)) getSum
 fmnull :: FoldMapFunc a All Bool
 fmnull = FoldMapFunc (const $ All False) getAll
 
--- Custom monoid for maximum and minimum with Maybe
-newtype MaxMaybe a = MaxMaybe { getMaxMaybe :: Maybe a } deriving (Eq, Show)
-instance (Ord a) => Semigroup (MaxMaybe a) where
-  MaxMaybe Nothing <> b = b
-  a <> MaxMaybe Nothing = a
-  MaxMaybe (Just a) <> MaxMaybe (Just b) = MaxMaybe (Just (max a b))
-instance (Ord a) => Monoid (MaxMaybe a) where
-  mempty = MaxMaybe Nothing
 
-newtype MinMaybe a = MinMaybe { getMinMaybe :: Maybe a } deriving (Eq, Show)
-instance (Ord a) => Semigroup (MinMaybe a) where
-  MinMaybe Nothing <> b = b
-  a <> MinMaybe Nothing = a
-  MinMaybe (Just a) <> MinMaybe (Just b) = MinMaybe (Just (min a b))
-instance (Ord a) => Monoid (MinMaybe a) where
-  mempty = MinMaybe Nothing
 
-fmmaximum :: (Ord a) => FoldMapFunc a (MaxMaybe a) (Maybe a)
-fmmaximum = FoldMapFunc (MaxMaybe . Just) getMaxMaybe
+fmmaximum :: (Ord a) => FoldMapFunc a (Maybe(Max a)) (Maybe a)
+fmmaximum = FoldMapFunc (Just . Max) (fmap getMax)
 
-fmminimum :: (Ord a) => FoldMapFunc a (MinMaybe a) (Maybe a)
-fmminimum = FoldMapFunc (MinMaybe . Just) getMinMaybe
+fmminimum :: (Ord a) => FoldMapFunc a (Maybe(Min a)) (Maybe a)
+fmminimum = FoldMapFunc (Just . Min) (fmap getMin)
 
--- fmmaxBy :: Ord b => (a -> b) -> FoldMapFunc a (First (Maybe (b, a))) (Maybe a)
--- fmmaxBy f = FoldMapFunc (\x -> First $ Just (f x, x)) (fmap snd . getFirst)
+fmmaxBy :: Ord b => (a -> b) -> FoldMapFunc a (Maybe (Max (b, a))) (Maybe a)
+fmmaxBy f = FoldMapFunc (Just . Max . (\x -> (f x, x))) (fmap (snd . getMax))
 
--- fmminBy :: Ord b => (a -> b) -> FoldMapFunc a (First (Maybe (b, a))) (Maybe a)
--- fmminBy f = FoldMapFunc (\x -> First $ Just (f x, x)) (fmap snd . getFirst)
-
--- fmmaximum :: (Ord a) => FoldMapFunc a (Maybe a) (Maybe a)
--- fmminimum :: (Ord a) => FoldMapFunc a (Min (Maybe a)) (Maybe a)
--- fmmaxBy :: Ord b => (a -> b) -> FoldMapFunc a _ (Maybe a)
--- fmminBy :: Ord b => (a -> b) -> FoldMapFunc a _ (Maybe a)
+fmminBy :: Ord b => (a -> b) -> FoldMapFunc a (Maybe (Min (b, a))) (Maybe a)
+fmminBy f = FoldMapFunc (Just . Min . (\x -> (f x, x))) (fmap (snd . getMin))
 
 fmtoList :: FoldMapFunc a [a] [a]
 fmtoList = FoldMapFunc (: []) id
